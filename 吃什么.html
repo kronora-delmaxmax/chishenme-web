@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>吃什么 · 别想了，吃这个</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --paper: #F7F3EC; --ink: #2A2318; --ink-light: #5C5044;
+  --rule: rgba(42,35,24,0.12); --muted: #9C9183; --sage: #7A8B6E;
+  --ember: #C45C3A; --cream: #EDE8DF; --warm-white: #FDFAF5;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:14px; }
+body { font-family:-apple-system,'Noto Serif SC',sans-serif; background:var(--paper); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+/* ====== Intro ====== */
+#intro { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; background:var(--paper); transition:transform 0.5s ease,opacity 0.4s; }
+#intro.gone { transform:translateY(-100%); opacity:0; pointer-events:none; }
+.intro-content { display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 24px; }
+.intro-title { font-size:36px; font-weight:900; color:var(--ink); margin-bottom:8px; }
+.intro-subtitle { font-size:14px; color:var(--ink-light); margin-bottom:36px; }
+.shake-zone { width:140px; height:140px; border-radius:50%; border:2px solid var(--ink); background:var(--cream); display:flex; align-items:center; justify-content:center; font-size:48px; cursor:pointer; margin-bottom:24px; transition:transform 0.1s; }
+.shake-zone:active { transform:scale(0.93); }
+.shake-btn { background:var(--ink); color:var(--warm-white); border:none; border-radius:40px; padding:14px 36px; font-size:14px; font-weight:700; cursor:pointer; }
+.intro-note { position:absolute; bottom:24px; font-size:10px; color:var(--muted); letter-spacing:0.1em; }
+
+/* ====== Main ====== */
+#mainPage { display:none; padding-bottom:40px; }
+#mainPage.visible { display:block; }
+.header { padding:16px 20px 0; }
+.header-top { display:flex; justify-content:space-between; margin-bottom:4px; }
+.header-meta { font-size:9px; font-weight:600; letter-spacing:0.15em; color:var(--muted); text-transform:uppercase; }
+.header-date { font-size:9px; color:var(--muted); }
+.header-rule { border:none; border-top:1px solid var(--ink); margin:6px 0 12px; }
+.header-title { font-size:24px; font-weight:700; margin-bottom:2px; }
+.header-subtitle { font-size:11px; color:var(--ink-light); }
+
+.search-wrap { padding:12px 20px; display:flex; gap:8px; }
+.search-wrap input { flex:1; padding:8px 12px; border:1px solid var(--rule); border-radius:20px; font-size:13px; background:var(--warm-white); outline:none; }
+.search-wrap input:focus { border-color:var(--sage); }
+.search-wrap button { padding:8px 16px; border:none; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; background:var(--ink); color:var(--warm-white); }
+
+.feature-banner { margin:12px 20px 16px; position:relative; overflow:hidden; border-radius:2px; }
+.feature-photo { width:100%; height:120px; object-fit:cover; display:block; }
+.feature-overlay { position:absolute; inset:0; background:linear-gradient(to right,rgba(42,35,24,0.7) 0%,rgba(42,35,24,0.2) 60%,transparent 100%); }
+.feature-caption { position:absolute; bottom:12px; left:14px; }
+.feature-caption-label { font-size:8px; font-weight:700; letter-spacing:0.15em; color:rgba(253,250,245,0.65); text-transform:uppercase; margin-bottom:2px; }
+.feature-caption-title { font-size:16px; font-weight:700; color:var(--warm-white); }
+
+.notify-strip { margin:0 20px 16px; display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--cream); border:1px solid var(--rule); border-radius:2px; }
+.notify-dot { width:6px; height:6px; border-radius:50%; background:var(--ember); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+.notify-text { flex:1; font-size:11px; }
+
+.hot-bar-wrap { margin:0 20px 16px; }
+.hot-bar-label { font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+.hot-bar { height:3px; background:var(--rule); border-radius:2px; overflow:hidden; }
+.hot-bar-fill { height:100%; background:linear-gradient(to right,var(--sage),var(--ember)); border-radius:2px; transition:width 0.6s ease; }
+
+.map-wrap { margin:0 20px 16px; border-radius:2px; overflow:hidden; border:1px solid var(--rule); position:relative; }
+#map { height:220px; width:100%; background:var(--cream); }
+.leaflet-container { background:#EDE8DF !important; }
+.leaflet-tile-pane { opacity:0.28; filter:saturate(0.3) sepia(0.3); }
+.leaflet-control-zoom { display:block !important; }
+.leaflet-control-zoom a { background:rgba(253,250,245,0.9) !important; color:var(--ink) !important; border:1px solid var(--rule) !important; border-radius:2px !important; width:28px !important; height:28px !important; line-height:28px !important; }
+.leaflet-control-attribution { display:none !important; }
+#rings-overlay { position:absolute; inset:0; pointer-events:none; z-index:410; }
+.map-legend { position:absolute; bottom:8px; left:8px; background:rgba(253,250,245,0.9); backdrop-filter:blur(8px); border:1px solid var(--rule); border-radius:2px; padding:6px 8px; font-size:9px; line-height:1.8; z-index:450; }
+.legend-item { display:flex; align-items:center; gap:5px; color:var(--ink-light); }
+.legend-ring { width:8px; height:8px; border-radius:50%; }
+
+.section-header { margin:0 20px 10px; display:flex; align-items:baseline; gap:10px; }
+.section-title { font-size:15px; font-weight:700; }
+.section-count { font-size:10px; color:var(--muted); }
+.section-rule { flex:1; border:none; border-top:1px solid var(--rule); }
+
+.restaurant-list { margin:0 20px; }
+.restaurant-item { padding:16px 4px; border-bottom:1px solid var(--rule); display:flex; gap:14px; align-items:flex-start; cursor:pointer; }
+.restaurant-item:last-child { border-bottom:none; }
+.rank-num { font-size:22px; font-weight:700; color:var(--rule); line-height:1; min-width:28px; text-align:center; flex-shrink:0; }
+.restaurant-item.top-three .rank-num { color:var(--ember); }
+.item-photo-wrap { width:72px; height:56px; flex-shrink:0; border-radius:2px; overflow:hidden; background:var(--cream); position:relative; }
+.item-photo { width:100%; height:100%; object-fit:cover; }
+.rank-badge { position:absolute; top:4px; left:4px; width:18px; height:18px; background:var(--ember); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+.item-content { flex:1; min-width:0; }
+.item-header-row { display:flex; align-items:baseline; gap:6px; margin-bottom:3px; }
+.item-name { font-size:14px; font-weight:700; }
+.item-score-badge { font-size:9px; font-weight:700; color:var(--ember); background:rgba(196,92,58,0.1); padding:2px 5px; border-radius:2px; }
+.item-tags { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:4px; }
+.item-tag { font-size:9px; color:var(--ink-light); background:rgba(92,80,68,0.07); padding:1px 6px; border-radius:20px; border:1px solid rgba(92,80,68,0.1); }
+.item-meta { font-size:9px; color:var(--muted); }
+
+/* ====== Detail Card ====== */
+#detailOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:300; }
+#detailOverlay.open { display:block; }
+.detail-card { position:fixed; bottom:0; left:0; right:0; background:var(--warm-white); border-radius:16px 16px 0 0; z-index:301; transform:translateY(100%); transition:transform 0.35s ease; max-height:80vh; overflow-y:auto; box-shadow:0 -4px 24px rgba(42,35,24,0.15); }
+.detail-card.open { transform:translateY(0); }
+.card-photo-header { position:relative; height:160px; overflow:hidden; border-radius:16px 16px 0 0; }
+.card-bg-photo { width:100%; height:100%; object-fit:cover; }
+.card-illust-layer { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 30%,rgba(253,250,245,0.95) 100%); }
+.card-close { position:absolute; top:10px; right:10px; width:28px; height:28px; background:rgba(253,250,245,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; z-index:2; }
+.card-content { padding:0 16px 24px; }
+.card-title { font-size:20px; font-weight:700; margin-bottom:6px; }
+.card-meta { font-size:10px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+.card-platforms { display:flex; gap:6px; margin-bottom:12px; }
+.card-platform-badge { font-size:9px; font-weight:700; padding:3px 8px; border-radius:20px; color:white; }
+.card-platform-badge.gaode { background:#07C160; }
+.card-quote { background:var(--cream); border-left:3px solid var(--sage); padding:10px 12px; margin-bottom:14px; border-radius:0 4px 4px 0; }
+.card-quote p { font-size:12px; line-height:1.6; font-style:italic; }
+.card-quote-source { font-size:9px; color:var(--muted); margin-top:6px; }
+.card-reasons { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:14px; }
+.card-reason-chip { background:rgba(122,139,110,0.1); border:1px solid rgba(122,139,110,0.25); color:var(--sage); font-size:10px; font-weight:600; padding:4px 10px; border-radius:20px; }
+.card-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.card-stat { background:var(--cream); border-radius:4px; padding:10px; text-align:center; }
+.card-stat-num { font-size:16px; font-weight:700; display:block; }
+.card-stat-label { font-size:8px; color:var(--muted); font-weight:600; letter-spacing:0.04em; text-transform:uppercase; margin-top:2px; display:block; }
+.card-cta { display:flex; gap:8px; }
+.card-btn { flex:1; padding:12px; border-radius:4px; font-size:12px; font-weight:700; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; }
+.card-btn.primary { background:var(--ink); color:var(--warm-white); }
+.card-btn.secondary { background:var(--cream); color:var(--ink); border:1px solid var(--rule); }
+.footer { margin:20px; text-align:center; padding:16px 0; border-top:1px solid var(--rule); font-size:9px; color:var(--muted); }
+.swipe-hint { display:flex; justify-content:center; padding:8px 0 2px; }
+.swipe-hint-line { width:30px; height:3px; background:var(--rule); border-radius:2px; }
+
+@media (max-width:380px) {
+  .item-photo-wrap { width:60px; height:48px; }
+  .rank-num { font-size:18px; min-width:24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ====== INTRO ====== -->
+<div id="intro">
+  <div class="intro-content">
+    <div class="intro-title">今天吃什么</div>
+    <p class="intro-subtitle">摇一摇，告诉你附近最该去的那家店</p>
+    <div class="shake-zone" id="shakeZone"><span>🍽️</span></div>
+    <button class="shake-btn" id="shakeBtn">开始推荐</button>
+  </div>
+  <div class="intro-note">高德地图 POI 实时数据</div>
+</div>
+
+<!-- ====== MAIN ====== -->
+<div id="mainPage">
+  <div class="search-wrap">
+    <input type="text" id="placeInput" placeholder="输入地名...">
+    <button onclick="searchPlace()">搜索</button>
+  </div>
+  <header class="header">
+    <div class="header-top"><div class="header-meta">Food Decision</div><div class="header-date" id="headerDate"></div></div>
+    <hr class="header-rule">
+    <h1 class="header-title">今日吃什么</h1>
+    <p class="header-subtitle" id="pageSubtitle">正在定位…</p>
+  </header>
+  <div class="feature-banner">
+    <img class="feature-photo" id="featurePhoto" src="" alt="" onerror="this.style.opacity='0.3';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22120%22%3E%3Crect fill=%22%23EDE8DF%22 width=%22600%22 height=%22120%22/%3E%3Ctext x=%22300%22 y=%2270%22 text-anchor=%22middle%22 font-size=%2240%22%3E🍽️%3C/text%3E%3C/svg%3E';">
+    <div class="feature-overlay"></div>
+    <div class="feature-caption"><div class="feature-caption-label">推荐</div><div class="feature-caption-title" id="featureTitle">加载中…</div></div>
+  </div>
+  <div class="notify-strip"><div class="notify-dot"></div><div class="notify-text">附近 <strong id="notifyCount">0家</strong> 餐厅等你来选</div></div>
+  <div class="hot-bar-wrap"><div class="hot-bar-label">热度分布</div><div class="hot-bar"><div class="hot-bar-fill" id="hotBar" style="width:0%"></div></div></div>
+  <div class="map-wrap" id="mapWrap"><div id="map"></div><svg id="rings-overlay"></svg>
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-ring" style="background:var(--ember)"></div>5分钟</div>
+      <div class="legend-item"><div class="legend-ring" style="background:var(--sage)"></div>10分钟</div>
+      <div class="legend-item"><div class="legend-ring" style="background:var(--muted)"></div>15分钟</div>
+    </div>
+  </div>
+  <div class="section-header"><div class="section-title">餐厅推荐</div><div class="section-count" id="listCount">0家</div><div class="section-rule"></div></div>
+  <div class="restaurant-list" id="restaurantList"></div>
+  <footer class="footer">别想了，吃这个。<br>高德地图 POI 实时数据</footer>
+</div>
+
+<!-- ====== DETAIL CARD ====== -->
+<div id="detailOverlay" onclick="closeCard()">
+  <div class="detail-card" id="detailCard" onclick="event.stopPropagation()">
+    <div class="swipe-hint"><div class="swipe-hint-line"></div></div>
+    <div class="card-photo-header">
+      <img class="card-bg-photo" id="cardPhoto" src="" alt="">
+      <div class="card-illust-layer"></div>
+      <div class="card-close" onclick="closeCard()">✕</div>
+    </div>
+    <div class="card-content">
+      <div class="card-title" id="cardTitle"></div>
+      <div class="card-meta" id="cardMeta"></div>
+      <div class="card-platforms"><span class="card-platform-badge gaode">高德地图</span></div>
+      <div class="card-quote"><p id="cardQuote"></p><div class="card-quote-source" id="cardQuoteSource"></div></div>
+      <div class="card-reasons" id="cardReasons"></div>
+      <div class="card-stats">
+        <div class="card-stat"><span class="card-stat-num" id="statRating">—</span><span class="card-stat-label">评分</span></div>
+        <div class="card-stat"><span class="card-stat-num" id="statCost">—</span><span class="card-stat-label">人均</span></div>
+        <div class="card-stat"><span class="card-stat-num" id="statWalk">—</span><span class="card-stat-label">步行</span></div>
+      </div>
+      <div class="card-cta">
+        <button class="card-btn secondary" onclick="closeCard()">再看看</button>
+        <button class="card-btn primary" onclick="navigateTo()">🧭 导航去吃</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// 配置：在此填入你的高德 API Key
+// 免费申请 → https://console.amap.com/dev/key/app
+// ═══════════════════════════════════════════
+const AMAP_KEY = '21a7c7fc12da2fda5ba4513a66cf3f03';
+
+// ═══════════════════════════════════════════
+// 全局状态
+// ═══════════════════════════════════════════
+let restaurants = [], map = null;
+let userLoc = { lng: 108.367, lat: 22.817, _radius: 1000 };
+const FOOD_EMOJI = {
+  '川菜':'🌶️','火锅':'🍲','烧烤':'🍢','粤菜':'🥘','西餐':'🥩','快餐':'🍔',
+  '咖啡':'☕','甜品':'🍰','日韩料理':'🍣','东南亚菜':'🍜','中餐厅':'🥢',
+  '冷饮店':'🧋','韩国料理':'🍙','面食':'🍝','卤味':'🍢','火锅店':'🍲',
+  '湘菜':'🌶️','江浙菜':'🥟','自助餐':'🍽️','清真':'🥙','小吃':'🥟'
+};
+
+// ═══════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════
+(function() {
+  var d = new Date();
+  document.getElementById('headerDate').textContent =
+    d.toLocaleDateString('zh-CN', { month:'short', day:'numeric', weekday:'short' });
+
+  // GPS 定位
+  if (navigator.geolocation) {
+    document.getElementById('pageSubtitle').textContent = '正在获取你的位置…';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      userLoc = { lng: pos.coords.longitude, lat: pos.coords.latitude, _radius: 1000 };
+      document.getElementById('placeInput').value = '当前位置';
+      document.getElementById('pageSubtitle').textContent = '基于你的位置 · 步行15分钟内';
+      loadRestaurants(userLoc.lng, userLoc.lat, 1000);
+    }, function() {
+      // GPS 失败 → 默认南宁
+      document.getElementById('pageSubtitle').textContent = '南宁 · 步行15分钟内（未获取定位）';
+      document.getElementById('placeInput').value = '南宁';
+      loadRestaurants(108.367, 22.817, 1000);
+    }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  } else {
+    document.getElementById('pageSubtitle').textContent = '南宁 · 步行15分钟内';
+    document.getElementById('placeInput').value = '南宁';
+    loadRestaurants(108.367, 22.817, 1000);
+  }
+})();
+
+// ═══════════════════════════════════════════
+// 事件
+// ═══════════════════════════════════════════
+document.getElementById('shakeZone').onclick = trigger;
+document.getElementById('shakeBtn').onclick = trigger;
+document.getElementById('placeInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') searchPlace();
+});
+
+function trigger() {
+  document.getElementById('intro').classList.add('gone');
+  document.getElementById('mainPage').classList.add('visible');
+  if (!map) initMap();
+  if (restaurants.length === 0) loadRestaurants(userLoc.lng, userLoc.lat, userLoc._radius || 1000);
+}
+
+// ═══════════════════════════════════════════
+// API 调用（直连高德，无需服务器）
+// ═══════════════════════════════════════════
+async function fetchNearby(lng, lat, radius) {
+  var url = 'https://restapi.amap.com/v5/place/around?location=' + lng + ',' + lat
+    + '&types=050000&radius=' + radius
+    + '&offset=25&sortrule=distance'
+    + '&show_fields=children,business,navi,photos&key=' + AMAP_KEY;
+  var res = await fetch(url);
+  var raw = await res.json();
+  return (raw.pois || []).map(function(poi) {
+    var b = poi.business || {};
+    var dist = Number(poi.distance || 9999);
+    var wm = Math.max(1, Math.round(dist / 80));
+    var tagsRaw = [b.tag, b.rectag, b.keytag].filter(Boolean)
+      .flatMap(function(s) { return String(s).split(/[,;，；\s]+/); }).filter(Boolean);
+    var tags = tagsRaw.filter(function(t, i) { return tagsRaw.indexOf(t) === i; });
+    var tp = (poi.type || '').split(';');
+    var cuisine = tp[2] || tp[1] || '中餐';
+    var rating = b.rating ? Number(b.rating) : 3.5;
+    var cost = b.cost ? Number(b.cost) : 0;
+    var rs = (rating / 5) * 35;
+    var ds = Math.max(0, (1 - dist / 1500)) * 35;
+    var ts = Math.min(tags.length / 10, 1) * 15;
+    var ps = ((poi.photos || []).length > 0 ? 15 : 5);
+    var hs = Math.round(Math.min(rs + ds + ts + ps, 100));
+    return {
+      name: poi.name, cuisine: cuisine, rating: rating, costPerPerson: cost,
+      walkingMin: wm, distance: dist + 'm', address: poi.address || '',
+      businessArea: b.business_area || '', tags: tags.slice(0, 8),
+      photoUrl: ((poi.photos || [])[0] || {}).url || '',
+      hotnessScore: hs,
+      quote: tags.length > 0 ? '"' + tags[0] + '，值得一试"' : '"附近好评度最高的餐厅之一"',
+      lng: Number(poi.location.split(',')[0]), lat: Number(poi.location.split(',')[1])
+    };
+  }).sort(function(a, b) { return b.hotnessScore - a.hotnessScore; });
+}
+
+async function searchPlace() {
+  var place = document.getElementById('placeInput').value.trim();
+  if (!place) return;
+  var url = 'https://restapi.amap.com/v5/place/text?keywords=' + encodeURIComponent(place)
+    + '&types=190000&offset=1&key=' + AMAP_KEY;
+  var res = await fetch(url);
+  var data = await res.json();
+  if (!data.pois || data.pois.length === 0) { alert('找不到"' + place + '"'); return; }
+  var p = data.pois[0];
+  var loc = p.location.split(',').map(Number);
+  userLoc = { lng: loc[0], lat: loc[1], _radius: 1000 };
+  document.getElementById('pageSubtitle').textContent = place + ' · 步行15分钟内';
+  loadRestaurants(loc[0], loc[1], 1000);
+}
+
+async function loadRestaurants(lng, lat, radius) {
+  restaurants = await fetchNearby(lng, lat, radius);
+  updateUI(lng, lat);
+}
+
+// ═══════════════════════════════════════════
+// UI 更新
+// ═══════════════════════════════════════════
+function updateUI(lng, lat) {
+  document.getElementById('notifyCount').textContent = restaurants.length + '家';
+  document.getElementById('listCount').textContent = restaurants.length + '家';
+  var maxScore = restaurants.length > 0 ? restaurants[0].hotnessScore : 80;
+  setTimeout(function() { document.getElementById('hotBar').style.width = maxScore + '%'; }, 300);
+  if (restaurants.length > 0) {
+    var t = restaurants[0];
+    document.getElementById('featurePhoto').src = t.photoUrl || '';
+    document.getElementById('featureTitle').textContent = t.name + ' · ' + t.hotnessScore + '分';
+  }
+  if (map && lng && lat) map.setView([lat, lng], map.getZoom());
+  else if (!map) initMap();
+  renderList();
+  if (map) setTimeout(function() { clearPins(); placePins(); drawRings(); }, 300);
+}
+
+function renderList() {
+  var list = document.getElementById('restaurantList');
+  list.innerHTML = '';
+  restaurants.forEach(function(r, i) {
+    var tags = r.tags.slice(0, 3).map(esc).map(function(t) {
+      return '<span class="item-tag">' + t + '</span>';
+    }).join('');
+    var photo = r.photoUrl
+      ? '<img class="item-photo" src="' + r.photoUrl + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'">'
+      : '';
+    var item = document.createElement('div');
+    item.className = 'restaurant-item' + (i < 3 ? ' top-three' : '');
+    item.onclick = (function(idx) { return function() { openCard(idx); }; })(i);
+    item.innerHTML =
+      '<div class="rank-num">' + String(i + 1).padStart(2, '0') + '</div>' +
+      '<div class="item-photo-wrap">' + photo + '<div class="rank-badge">' + (i + 1) + '</div></div>' +
+      '<div class="item-content">' +
+        '<div class="item-header-row"><div class="item-name">' + esc(r.name) + '</div>' +
+        '<div class="item-score-badge">' + r.hotnessScore + '</div></div>' +
+        '<div class="item-tags"><span class="item-tag">' + esc(r.cuisine) + '</span>' +
+        '<span class="item-tag">🚶 ' + r.walkingMin + '分钟</span>' + tags + '</div>' +
+        '<div class="item-meta">' + esc(r.address.substring(0, 18)) + '…</div>' +
+      '</div>';
+    list.appendChild(item);
+  });
+}
+
+// ═══════════════════════════════════════════
+// 地图
+// ═══════════════════════════════════════════
+function initMap() {
+  if (map) { map.remove(); map = null; }
+  map = L.map('map', {
+    center: [userLoc.lat, userLoc.lng], zoom: 16,
+    zoomControl: true, attributionControl: false,
+    dragging: true, scrollWheelZoom: true
+  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  var icon = L.divIcon({
+    html: '<div style="width:12px;height:12px;background:#2A2318;border-radius:50%;border:2px solid #F7F3EC;box-shadow:0 0 0 3px rgba(247,243,236,0.4)"></div>',
+    className: '', iconSize: [12, 12], iconAnchor: [6, 6]
+  });
+  L.marker([userLoc.lat, userLoc.lng], { icon: icon }).addTo(map);
+  drawRings(); placePins();
+
+  var moveTimer = null;
+  map.on('zoomend moveend', function() {
+    drawRings(); clearPins(); placePins();
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(function() {
+      var c = map.getCenter();
+      var radius = zoomToRadius(map.getZoom());
+      var dist = userLoc.lat ? haversine(userLoc.lat, userLoc.lng, c.lat, c.lng) : 9999;
+      if (dist > 200 || Math.abs(radius - (userLoc._radius || 0)) > 300) {
+        userLoc = { lng: c.lng, lat: c.lat, _radius: radius };
+        loadRestaurants(c.lng, c.lat, radius);
+      }
+    }, 600);
+  });
+}
+
+function zoomToRadius(z) { return Math.round(25000 / Math.pow(2, z - 8)); }
+
+function drawRings() {
+  var svg = document.getElementById('rings-overlay');
+  var me = document.getElementById('map');
+  var w = me.offsetWidth, h = me.offsetHeight;
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  var cp = map.latLngToContainerPoint(map.getCenter());
+  var rings = [
+    { m: 400, c: '#C45C3A', l: '5' },
+    { m: 800, c: '#7A8B6E', l: '10' },
+    { m: 1200, c: '#9C9183', l: '15' }
+  ];
+  svg.innerHTML = rings.map(function(ring, i) {
+    var ep = map.latLngToContainerPoint([
+      map.getCenter().lat,
+      map.getCenter().lng + ring.m / (111320 * Math.cos(map.getCenter().lat * Math.PI / 180))
+    ]);
+    var r = Math.abs(ep.x - cp.x);
+    var dash = i === 0 ? 'none' : (Math.round(r * 0.03) + ',' + Math.round(r * 0.04));
+    return '<circle cx="' + cp.x + '" cy="' + cp.y + '" r="' + r + '" fill="none" stroke="' + ring.c + '" stroke-width="1.5" stroke-dasharray="' + dash + '" opacity="0.5"/>' +
+      '<text x="' + (cp.x + r + 4) + '" y="' + (cp.y + 3) + '" fill="' + ring.c + '" font-size="8" font-weight="700" opacity="0.6">' + ring.l + '分</text>';
+  }).join('');
+}
+
+function clearPins() {
+  var me = document.getElementById('map');
+  if (me) me.querySelectorAll('.custom-pin').forEach(function(el) { el.remove(); });
+}
+
+function placePins() {
+  var positions = [{ x: 72, y: 38 }, { x: 52, y: 58 }, { x: 26, y: 28 }, { x: 82, y: 68 }, { x: 18, y: 78 }];
+  var me = document.getElementById('map');
+  restaurants.slice(0, 5).forEach(function(r, i) {
+    var pos = positions[i] || { x: 50 + Math.random() * 30, y: 30 + Math.random() * 40 };
+    var bg = r.hotnessScore >= 80 ? '#C45C3A' : r.hotnessScore >= 70 ? '#7A8B6E' : '#9C9183';
+    var fg = r.hotnessScore >= 75 ? '#FDFAF5' : '#2A2318';
+    var emoji = FOOD_EMOJI[r.cuisine] || '🍴';
+    var pin = document.createElement('div');
+    pin.className = 'custom-pin';
+    pin.style.cssText = 'position:absolute;left:' + pos.x + '%;top:' + pos.y + '%;transform:translate(-50%,-50%);z-index:500;cursor:pointer';
+    pin.innerHTML =
+      '<div style="width:34px;height:34px;background:' + bg + ';border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(42,35,24,0.2);border:2px solid #F7F3EC">' +
+        '<span style="position:absolute;top:-4px;right:-4px;background:#2A2318;color:#F7F3EC;font-size:8px;font-weight:800;padding:1px 3px;border-radius:6px">' + r.hotnessScore + '</span>' +
+        '<span style="color:' + fg + '">' + emoji + '</span>' +
+      '</div>' +
+      '<div style="text-align:center;font-size:8px;font-weight:700;color:#5C5044;margin-top:2px;background:rgba(247,243,236,0.88);padding:1px 4px;border-radius:6px">🚶 ' + r.walkingMin + '分</div>';
+    pin.onclick = (function(idx) { return function() { openCard(idx); }; })(i);
+    me.appendChild(pin);
+  });
+}
+
+// ═══════════════════════════════════════════
+// 详情卡
+// ═══════════════════════════════════════════
+function openCard(idx) {
+  var r = restaurants[idx]; if (!r) return;
+  document.getElementById('detailOverlay').classList.add('open');
+  document.getElementById('detailCard').classList.add('open');
+  document.getElementById('cardPhoto').src = r.photoUrl || '';
+  document.getElementById('cardTitle').textContent = r.name;
+  document.getElementById('cardQuote').textContent = r.quote;
+  document.getElementById('cardQuoteSource').textContent = '— 高德地图用户评价';
+  document.getElementById('statRating').textContent = r.rating;
+  document.getElementById('statCost').textContent = '¥' + r.costPerPerson;
+  document.getElementById('statWalk').textContent = r.walkingMin + '分钟';
+  document.getElementById('cardMeta').innerHTML =
+    '<span>🍽️ ' + esc(r.cuisine) + '</span><span>⭐ ' + r.rating + '</span><span>🚶 ' + r.walkingMin + '分钟</span>';
+  document.getElementById('cardReasons').innerHTML = r.tags.slice(0, 4).map(function(t) {
+    return '<span class="card-reason-chip">' + esc(t) + '</span>';
+  }).join('');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCard() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  document.getElementById('detailCard').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function navigateTo() {
+  var r = restaurants[0]; if (!r) return;
+  window.open('https://uri.amap.com/navigation?to=' + r.lng + ',' + r.lat + ',餐厅&mode=walk&callnative=1', '_blank');
+}
+
+// ═══════════════════════════════════════════
+// 工具
+// ═══════════════════════════════════════════
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function haversine(lat1, lng1, lat2, lng2) {
+  var R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+</script>
+</body>
+</html>
