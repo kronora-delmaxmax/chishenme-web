@@ -5,198 +5,366 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>吃什么 · 别想了，吃这个</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="preconnect" href="https://webrd01.is.autonavi.com" crossorigin>
+<link rel="dns-prefetch" href="https://webrd01.is.autonavi.com">
+<link rel="dns-prefetch" href="https://restapi.amap.com">
 <style>
 :root {
-  --paper: #F7F3EC; --ink: #2A2318; --ink-light: #5C5044;
-  --rule: rgba(42,35,24,0.12); --muted: #9C9183; --sage: #7A8B6E;
-  --ember: #C45C3A; --cream: #EDE8DF; --warm-white: #FDFAF5;
+  --paper: #F7F3EC;
+  --ink: #2A2318;
+  --ink-light: #5C5044;
+  --rule: rgba(42,35,24,0.12);
+  --muted: #9C9183;
+  --sage: #7A8B6E;
+  --ember: #C45C3A;
+  --cream: #EDE8DF;
+  --warm-white: #FDFAF5;
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 html { font-size:14px; }
-body { font-family:-apple-system,'Noto Serif SC',sans-serif; background:var(--paper); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; }
+body {
+  font-family:'Inter','Noto Serif SC',sans-serif;
+  background:var(--paper); color:var(--ink);
+  min-height:100vh; -webkit-font-smoothing:antialiased;
+}
+body::before {
+  content:''; position:fixed; inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none; z-index:9999; mix-blend-mode:multiply;
+}
 
-/* ====== Intro ====== */
-#intro { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; background:var(--paper); transition:transform 0.5s ease,opacity 0.4s; }
+/* ======= INTRO ======= */
+#intro {
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; z-index:100;
+  background:var(--paper);
+  transition:transform 0.5s cubic-bezier(0.32,0.72,0,1),opacity 0.35s;
+}
 #intro.gone { transform:translateY(-100%); opacity:0; pointer-events:none; }
-.intro-content { display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 24px; }
-.intro-title { font-size:36px; font-weight:900; color:var(--ink); margin-bottom:8px; }
-.intro-subtitle { font-size:14px; color:var(--ink-light); margin-bottom:36px; }
-.shake-zone { width:140px; height:140px; border-radius:50%; border:2px solid var(--ink); background:var(--cream); display:flex; align-items:center; justify-content:center; font-size:48px; cursor:pointer; margin-bottom:24px; transition:transform 0.1s; }
-.shake-zone:active { transform:scale(0.93); }
-.shake-btn { background:var(--ink); color:var(--warm-white); border:none; border-radius:40px; padding:14px 36px; font-size:14px; font-weight:700; cursor:pointer; }
-.intro-note { position:absolute; bottom:24px; font-size:10px; color:var(--muted); letter-spacing:0.1em; }
+.bg-numeral {
+  position:absolute; font-family:'Noto Serif SC',serif;
+  font-size:clamp(280px,70vw,420px); font-weight:900;
+  color:var(--rule); line-height:1; user-select:none; pointer-events:none; z-index:0;
+}
+.intro-content { position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 32px; }
+.intro-kicker { font-size:9px; font-weight:700; letter-spacing:0.25em; color:var(--muted); text-transform:uppercase; margin-bottom:16px; opacity:0; transform:translateY(10px); transition:opacity 0.6s 0.3s,transform 0.6s 0.3s; }
+#intro.ready .intro-kicker { opacity:1; transform:none; }
+.intro-title { font-family:'Noto Serif SC',serif; font-size:clamp(32px,8vw,48px); font-weight:900; color:var(--ink); line-height:1.15; margin-bottom:12px; opacity:0; transform:translateY(10px); transition:opacity 0.6s 0.5s,transform 0.6s 0.5s; }
+#intro.ready .intro-title { opacity:1; transform:none; }
+.intro-subtitle { font-size:13px; color:var(--ink-light); line-height:1.7; max-width:280px; margin-bottom:40px; opacity:0; transform:translateY(10px); transition:opacity 0.6s 0.7s,transform 0.6s 0.7s; }
+#intro.ready .intro-subtitle { opacity:1; transform:none; }
 
-/* ====== Main ====== */
-#mainPage { display:none; padding-bottom:40px; }
-#mainPage.visible { display:block; }
-.header { padding:16px 20px 0; }
-.header-top { display:flex; justify-content:space-between; margin-bottom:4px; }
-.header-meta { font-size:9px; font-weight:600; letter-spacing:0.15em; color:var(--muted); text-transform:uppercase; }
-.header-date { font-size:9px; color:var(--muted); }
-.header-rule { border:none; border-top:1px solid var(--ink); margin:6px 0 12px; }
-.header-title { font-size:24px; font-weight:700; margin-bottom:2px; }
-.header-subtitle { font-size:11px; color:var(--ink-light); }
+.shake-zone { position:relative; width:160px; height:160px; margin-bottom:8px; cursor:pointer; opacity:0; transform:scale(0.8); transition:opacity 0.6s 0.9s,transform 0.6s 0.9s; }
+#intro.ready .shake-zone { opacity:1; transform:scale(1); }
+#intro.ready .shake-zone:active { transform:scale(0.93); }
+.shake-circle { position:absolute; inset:0; border-radius:50%; border:2px solid var(--ink); background:var(--cream); display:flex; align-items:center; justify-content:center; font-size:52px; transition:transform 0.1s; }
+.shake-ring { position:absolute; inset:-12px; border-radius:50%; border:1px solid var(--rule); animation:ringPulse 3s ease-in-out infinite; }
+.shake-ring:nth-child(2) { animation-delay:1s; }
+.shake-ring:nth-child(3) { animation-delay:2s; }
+@keyframes ringPulse { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(1.5); opacity:0; } }
+.shake-label { font-size:10px; font-weight:700; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; text-align:center; margin-bottom:32px; opacity:0; transform:translateY(6px); transition:opacity 0.6s 1s,transform 0.6s 1s; }
+#intro.ready .shake-label { opacity:1; transform:none; }
+.shake-btn { background:var(--ink); color:var(--warm-white); border:none; border-radius:40px; padding:14px 36px; font-family:'Noto Serif SC',serif; font-size:14px; font-weight:700; cursor:pointer; letter-spacing:0.05em; opacity:0; transform:translateY(8px); transition:opacity 0.6s 1.1s,transform 0.6s 1.1s,background 0.2s; }
+#intro.ready .shake-btn { opacity:1; transform:none; }
+.shake-btn:hover { background:var(--ink-light); }
+.shake-btn:active { transform:scale(0.95); }
+.intro-note { position:absolute; bottom:28px; font-size:9px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; }
 
-.search-wrap { padding:12px 20px; display:flex; gap:8px; }
-.search-wrap input { flex:1; padding:8px 12px; border:1px solid var(--rule); border-radius:20px; font-size:13px; background:var(--warm-white); outline:none; }
+@keyframes shakeWiggle {
+  0%,100% { transform:rotate(0deg) scale(1); }
+  15% { transform:rotate(-18deg) scale(1.05); }
+  30% { transform:rotate(14deg) scale(1.04); }
+  45% { transform:rotate(-10deg) scale(1.03); }
+  60% { transform:rotate(7deg) scale(1.02); }
+  75% { transform:rotate(-4deg) scale(1.01); }
+  90% { transform:rotate(2deg) scale(1); }
+}
+.shake-zone.spinning .shake-circle { animation:shakeWiggle 0.7s ease forwards; }
+.shake-zone.spinning .shake-ring { animation:none; opacity:0; }
+
+/* ======= MAIN PAGE ======= */
+#mainPage {
+  position:fixed; inset:0; z-index:1;
+  opacity:0; pointer-events:none;
+  overflow-y:auto; -webkit-overflow-scrolling:touch;
+}
+#mainPage.visible {
+  opacity:1; pointer-events:auto;
+  transition:opacity 0.25s;
+}
+
+/* ======= SEARCH BAR ======= */
+.search-wrap { padding:16px 24px; display:flex; gap:8px; }
+.search-wrap input { flex:1; padding:10px 14px; border:1px solid var(--rule); border-radius:20px; font-size:13px; background:var(--warm-white); color:var(--ink); outline:none; font-family:inherit; }
 .search-wrap input:focus { border-color:var(--sage); }
-.search-wrap button { padding:8px 16px; border:none; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; background:var(--ink); color:var(--warm-white); }
+.search-wrap button { padding:10px 20px; border:none; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; background:var(--ink); color:var(--warm-white); font-family:inherit; transition:background 0.2s; }
+.search-wrap button:hover { background:var(--ink-light); }
+.search-wrap button:disabled { opacity:0.5; }
 
-.feature-banner { margin:12px 20px 16px; position:relative; overflow:hidden; border-radius:2px; }
-.feature-photo { width:100%; height:120px; object-fit:cover; display:block; }
-.feature-overlay { position:absolute; inset:0; background:linear-gradient(to right,rgba(42,35,24,0.7) 0%,rgba(42,35,24,0.2) 60%,transparent 100%); }
-.feature-caption { position:absolute; bottom:12px; left:14px; }
-.feature-caption-label { font-size:8px; font-weight:700; letter-spacing:0.15em; color:rgba(253,250,245,0.65); text-transform:uppercase; margin-bottom:2px; }
-.feature-caption-title { font-size:16px; font-weight:700; color:var(--warm-white); }
+/* ======= HEADER ======= */
+.header { padding:0 24px 0; position:relative; }
+.header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.header-meta { font-size:9px; font-weight:600; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; }
+.header-date { font-size:9px; color:var(--muted); letter-spacing:0.05em; }
+.header-rule { border:none; border-top:1px solid var(--ink); margin:6px 0 16px; }
+.header-title { font-family:'Noto Serif SC',serif; font-size:28px; font-weight:700; letter-spacing:-0.01em; line-height:1.2; margin-bottom:4px; }
+.header-subtitle { font-size:11px; color:var(--ink-light); letter-spacing:0.08em; }
 
-.notify-strip { margin:0 20px 16px; display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--cream); border:1px solid var(--rule); border-radius:2px; }
-.notify-dot { width:6px; height:6px; border-radius:50%; background:var(--ember); animation:pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
-.notify-text { flex:1; font-size:11px; }
+/* ======= FEATURE BANNER ======= */
+.feature-banner { margin:16px 24px 20px; position:relative; overflow:hidden; border-radius:2px; }
+.feature-photo { width:100%; height:140px; object-fit:cover; display:block; filter:contrast(1.03) saturate(0.9); }
+.feature-overlay { position:absolute; inset:0; background:linear-gradient(to right,rgba(42,35,24,0.72) 0%,rgba(42,35,24,0.3) 60%,transparent 100%); }
+.feature-illust { position:absolute; bottom:-8px; right:8px; font-size:88px; opacity:0.12; line-height:1; color:var(--paper); pointer-events:none; }
+.feature-caption { position:absolute; bottom:14px; left:16px; right:60px; }
+.feature-caption-label { font-size:8px; font-weight:700; letter-spacing:0.18em; color:rgba(253,250,245,0.65); text-transform:uppercase; margin-bottom:4px; }
+.feature-caption-title { font-family:'Noto Serif SC',serif; font-size:18px; font-weight:700; color:var(--warm-white); line-height:1.3; }
 
-.hot-bar-wrap { margin:0 20px 16px; }
-.hot-bar-label { font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+/* ======= NOTIFY STRIP ======= */
+.notify-strip { margin:0 24px 20px; display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--cream); border:1px solid var(--rule); border-radius:2px; cursor:pointer; transition:background 0.2s; }
+.notify-strip:hover { background:#E5E0D6; }
+.notify-dot { width:7px; height:7px; border-radius:50%; background:var(--ember); flex-shrink:0; animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.25; } }
+.notify-text { flex:1; font-size:12px; color:var(--ink); line-height:1.5; }
+.notify-text strong { font-weight:700; }
+.notify-arrow { font-size:14px; color:var(--muted); flex-shrink:0; }
+
+/* ======= HOT BAR ======= */
+.hot-bar-wrap { margin:0 24px 20px; }
+.hot-bar-label { font-size:9px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
 .hot-bar { height:3px; background:var(--rule); border-radius:2px; overflow:hidden; }
 .hot-bar-fill { height:100%; background:linear-gradient(to right,var(--sage),var(--ember)); border-radius:2px; transition:width 0.6s ease; }
 
-.map-wrap { margin:0 20px 16px; border-radius:2px; overflow:hidden; border:1px solid var(--rule); position:relative; }
-#map { height:220px; width:100%; background:var(--cream); }
+/* ======= SECTION ======= */
+.section-header { margin:0 24px 12px; display:flex; align-items:baseline; gap:12px; }
+.section-title { font-family:'Noto Serif SC',serif; font-size:16px; font-weight:700; }
+.section-count { font-size:10px; color:var(--muted); letter-spacing:0.05em; }
+.section-rule { flex:1; border:none; border-top:1px solid var(--rule); align-self:center; }
+
+/* ======= MAP ======= */
+.map-wrap { margin:0 24px 20px; position:relative; border-radius:2px; overflow:hidden; border:1px solid var(--rule); transition:max-height 0.45s cubic-bezier(0.32,0.72,0,1),opacity 0.35s; max-height:400px; opacity:1; }
+.map-wrap.card-open { max-height:0; opacity:0; margin:0 24px 0; overflow:hidden; pointer-events:none; }
+#map { height:260px; width:100%; background:var(--cream); }
 .leaflet-container { background:#EDE8DF !important; }
-.leaflet-tile-pane { opacity:0.28; filter:saturate(0.3) sepia(0.3); }
+.leaflet-tile-pane { opacity:0.28; filter:saturate(0.3) sepia(0.3) brightness(1.1); }
 .leaflet-control-zoom { display:block !important; }
-.leaflet-control-zoom a { background:rgba(253,250,245,0.9) !important; color:var(--ink) !important; border:1px solid var(--rule) !important; border-radius:2px !important; width:28px !important; height:28px !important; line-height:28px !important; }
+.leaflet-control-zoom a { background:rgba(253,250,245,0.9) !important; color:var(--ink) !important; border:1px solid var(--rule) !important; border-radius:2px !important; font-size:16px !important; width:30px !important; height:30px !important; line-height:30px !important; backdrop-filter:blur(8px); }
 .leaflet-control-attribution { display:none !important; }
 #rings-overlay { position:absolute; inset:0; pointer-events:none; z-index:410; }
-.map-legend { position:absolute; bottom:8px; left:8px; background:rgba(253,250,245,0.9); backdrop-filter:blur(8px); border:1px solid var(--rule); border-radius:2px; padding:6px 8px; font-size:9px; line-height:1.8; z-index:450; }
-.legend-item { display:flex; align-items:center; gap:5px; color:var(--ink-light); }
-.legend-ring { width:8px; height:8px; border-radius:50%; }
+.map-legend { position:absolute; bottom:10px; left:10px; background:rgba(253,250,245,0.9); backdrop-filter:blur(8px); border:1px solid var(--rule); border-radius:2px; padding:8px 10px; font-size:10px; line-height:1.9; z-index:450; }
+.legend-item { display:flex; align-items:center; gap:6px; color:var(--ink-light); }
+.legend-ring { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 
-.section-header { margin:0 20px 10px; display:flex; align-items:baseline; gap:10px; }
-.section-title { font-size:15px; font-weight:700; }
-.section-count { font-size:10px; color:var(--muted); }
-.section-rule { flex:1; border:none; border-top:1px solid var(--rule); }
-
-.restaurant-list { margin:0 20px; }
-.restaurant-item { padding:16px 4px; border-bottom:1px solid var(--rule); display:flex; gap:14px; align-items:flex-start; cursor:pointer; }
+/* ======= RESTAURANT LIST ======= */
+.restaurant-list { margin:0 24px; display:flex; flex-direction:column; gap:0; }
+.restaurant-item { padding:18px 4px; border-bottom:1px solid var(--rule); display:flex; gap:16px; align-items:flex-start; cursor:pointer; transition:background 0.15s; margin:0 -4px; border-radius:2px; }
+.restaurant-item:hover { background:var(--cream); }
 .restaurant-item:last-child { border-bottom:none; }
-.rank-num { font-size:22px; font-weight:700; color:var(--rule); line-height:1; min-width:28px; text-align:center; flex-shrink:0; }
+.rank-num { font-family:'Noto Serif SC',serif; font-size:26px; font-weight:700; color:var(--rule); line-height:1; min-width:32px; text-align:center; transition:color 0.2s; flex-shrink:0; }
+.restaurant-item:hover .rank-num { color:var(--ink); }
 .restaurant-item.top-three .rank-num { color:var(--ember); }
-.item-photo-wrap { width:72px; height:56px; flex-shrink:0; border-radius:2px; overflow:hidden; background:var(--cream); position:relative; }
-.item-photo { width:100%; height:100%; object-fit:cover; }
-.rank-badge { position:absolute; top:4px; left:4px; width:18px; height:18px; background:var(--ember); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; }
+.item-photo-wrap { width:88px; height:68px; flex-shrink:0; border-radius:2px; overflow:hidden; position:relative; background:var(--cream); }
+.item-photo { width:100%; height:100%; object-fit:cover; filter:contrast(1.02) saturate(0.88); transition:transform 0.4s; }
+.restaurant-item:hover .item-photo { transform:scale(1.05); }
+.item-photo-wrap::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(122,139,110,0.12) 0%,transparent 60%); pointer-events:none; }
 .item-content { flex:1; min-width:0; }
-.item-header-row { display:flex; align-items:baseline; gap:6px; margin-bottom:3px; }
-.item-name { font-size:14px; font-weight:700; }
-.item-score-badge { font-size:9px; font-weight:700; color:var(--ember); background:rgba(196,92,58,0.1); padding:2px 5px; border-radius:2px; }
-.item-tags { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:4px; }
-.item-tag { font-size:9px; color:var(--ink-light); background:rgba(92,80,68,0.07); padding:1px 6px; border-radius:20px; border:1px solid rgba(92,80,68,0.1); }
-.item-meta { font-size:9px; color:var(--muted); }
+.item-header-row { display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+.item-name { font-family:'Noto Serif SC',serif; font-size:15px; font-weight:700; color:var(--ink); line-height:1.3; }
+.item-score-badge { font-size:10px; font-weight:700; color:var(--ember); background:rgba(196,92,58,0.1); padding:2px 6px; border-radius:2px; flex-shrink:0; }
+.item-tags { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+.item-tag { font-size:10px; color:var(--ink-light); background:rgba(92,80,68,0.07); padding:2px 7px; border-radius:20px; border:1px solid rgba(92,80,68,0.1); letter-spacing:0.02em; }
+.item-meta { font-size:10px; color:var(--muted); display:flex; gap:10px; align-items:center; }
+.item-meta .dot { color:var(--rule); }
+.rank-badge { position:absolute; top:8px; left:8px; width:22px; height:22px; background:var(--ember); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; }
 
-/* ====== Detail Card ====== */
-#detailOverlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.3); z-index:300; }
-#detailOverlay.open { display:block; }
-.detail-card { position:fixed; bottom:0; left:0; right:0; background:var(--warm-white); border-radius:16px 16px 0 0; z-index:301; transform:translateY(100%); transition:transform 0.35s ease; max-height:80vh; overflow-y:auto; box-shadow:0 -4px 24px rgba(42,35,24,0.15); }
+/* ======= DETAIL CARD ======= */
+.detail-card { position:fixed; bottom:0; left:0; right:0; background:var(--warm-white); border-radius:16px 16px 0 0; padding:0; z-index:300; transform:translateY(100%); transition:transform 0.45s cubic-bezier(0.32,0.72,0,1); max-height:88vh; overflow-y:auto; box-shadow:0 -8px 40px rgba(42,35,24,0.12); }
 .detail-card.open { transform:translateY(0); }
-.card-photo-header { position:relative; height:160px; overflow:hidden; border-radius:16px 16px 0 0; }
-.card-bg-photo { width:100%; height:100%; object-fit:cover; }
-.card-illust-layer { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 30%,rgba(253,250,245,0.95) 100%); }
-.card-close { position:absolute; top:10px; right:10px; width:28px; height:28px; background:rgba(253,250,245,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; z-index:2; }
-.card-content { padding:0 16px 24px; }
-.card-title { font-size:20px; font-weight:700; margin-bottom:6px; }
-.card-meta { font-size:10px; color:var(--muted); display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
-.card-platforms { display:flex; gap:6px; margin-bottom:12px; }
-.card-platform-badge { font-size:9px; font-weight:700; padding:3px 8px; border-radius:20px; color:white; }
+.detail-card::-webkit-scrollbar { display:none; }
+.card-photo-header { position:relative; height:200px; overflow:hidden; border-radius:16px 16px 0 0; }
+.card-bg-photo { width:100%; height:100%; object-fit:cover; filter:contrast(1.04) saturate(0.85) brightness(0.95); }
+.card-illust-layer { position:absolute; inset:0; background:linear-gradient(to bottom,transparent 40%,rgba(253,250,245,0.95) 100%),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; }
+.card-rank-badge { position:absolute; top:14px; left:14px; width:32px; height:32px; background:var(--ember); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; }
+.card-close { position:absolute; top:14px; right:14px; width:32px; height:32px; background:rgba(253,250,245,0.9); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; }
+.card-content { padding:0 20px 32px; }
+.card-rank-num { font-family:'Noto Serif SC',serif; font-size:48px; font-weight:700; color:var(--rule); line-height:1; margin-bottom:-8px; }
+.card-title { font-family:'Noto Serif SC',serif; font-size:22px; font-weight:700; line-height:1.25; color:var(--ink); margin-bottom:8px; }
+.card-meta { font-size:11px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+.card-meta-item { display:flex; align-items:center; gap:4px; }
+.card-rule { border:none; border-top:1px solid var(--rule); margin:14px 0; }
+.card-platforms { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.card-platform-badge { font-size:10px; font-weight:700; padding:4px 10px; border-radius:20px; letter-spacing:0.05em; color:white; }
 .card-platform-badge.gaode { background:#07C160; }
-.card-quote { background:var(--cream); border-left:3px solid var(--sage); padding:10px 12px; margin-bottom:14px; border-radius:0 4px 4px 0; }
-.card-quote p { font-size:12px; line-height:1.6; font-style:italic; }
-.card-quote-source { font-size:9px; color:var(--muted); margin-top:6px; }
-.card-reasons { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:14px; }
-.card-reason-chip { background:rgba(122,139,110,0.1); border:1px solid rgba(122,139,110,0.25); color:var(--sage); font-size:10px; font-weight:600; padding:4px 10px; border-radius:20px; }
-.card-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
-.card-stat { background:var(--cream); border-radius:4px; padding:10px; text-align:center; }
-.card-stat-num { font-size:16px; font-weight:700; display:block; }
-.card-stat-label { font-size:8px; color:var(--muted); font-weight:600; letter-spacing:0.04em; text-transform:uppercase; margin-top:2px; display:block; }
-.card-cta { display:flex; gap:8px; }
-.card-btn { flex:1; padding:12px; border-radius:4px; font-size:12px; font-weight:700; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; }
+.card-quote { background:var(--cream); border-left:3px solid var(--sage); padding:14px 16px; margin-bottom:18px; border-radius:0 4px 4px 0; }
+.card-quote-mark { font-size:24px; line-height:0.5; color:var(--sage); opacity:0.4; display:block; margin-bottom:8px; }
+.card-quote p { font-family:'Noto Serif SC',serif; font-size:13px; line-height:1.8; color:var(--ink); font-style:italic; }
+.card-quote-source { font-size:10px; color:var(--muted); margin-top:8px; font-style:normal; }
+.card-reasons-label { font-size:9px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.card-reasons { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:18px; }
+.card-reason-chip { background:rgba(122,139,110,0.1); border:1px solid rgba(122,139,110,0.25); color:var(--sage); font-size:11px; font-weight:600; padding:5px 12px; border-radius:20px; }
+.card-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+.card-stat { background:var(--cream); border-radius:4px; padding:12px 10px; text-align:center; }
+.card-stat-num { font-family:'Noto Serif SC',serif; font-size:18px; font-weight:700; color:var(--ink); display:block; }
+.card-stat-label { font-size:9px; color:var(--muted); font-weight:600; letter-spacing:0.06em; text-transform:uppercase; margin-top:2px; display:block; }
+.card-cta { display:flex; gap:10px; }
+.card-btn { flex:1; padding:14px; border-radius:4px; font-size:13px; font-weight:700; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:transform 0.15s,opacity 0.15s; }
+.card-btn:active { transform:scale(0.97); }
 .card-btn.primary { background:var(--ink); color:var(--warm-white); }
 .card-btn.secondary { background:var(--cream); color:var(--ink); border:1px solid var(--rule); }
-.footer { margin:20px; text-align:center; padding:16px 0; border-top:1px solid var(--rule); font-size:9px; color:var(--muted); }
-.swipe-hint { display:flex; justify-content:center; padding:8px 0 2px; }
-.swipe-hint-line { width:30px; height:3px; background:var(--rule); border-radius:2px; }
+
+/* ======= FOOTER ======= */
+.footer { margin:24px; text-align:center; padding:20px 0; border-top:1px solid var(--rule); }
+.footer-text { font-size:9px; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; line-height:2; }
+.footer-slogan { font-family:'Noto Serif SC',serif; font-size:14px; color:var(--ink-light); margin-top:8px; }
+.swipe-hint { display:flex; justify-content:center; padding:10px 0 4px; }
+.swipe-hint-line { width:36px; height:3px; background:var(--rule); border-radius:2px; }
+
+/* Loading */
+.loading-overlay { display:none; position:fixed; inset:0; background:rgba(247,243,236,0.8); z-index:200; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
+.loading-overlay.active { display:flex; }
+.loading-spinner { width:40px; height:40px; border:3px solid var(--rule); border-top-color:var(--ink); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.loading-text { font-size:12px; color:var(--muted); }
 
 @media (max-width:380px) {
-  .item-photo-wrap { width:60px; height:48px; }
-  .rank-num { font-size:18px; min-width:24px; }
+  .item-photo-wrap { width:72px; height:56px; }
+  .rank-num { font-size:22px; min-width:26px; }
 }
 </style>
 </head>
 <body>
 
-<!-- ====== INTRO ====== -->
+<!-- INTRO PAGE -->
 <div id="intro">
+  <div class="bg-numeral">食</div>
   <div class="intro-content">
+    <div class="intro-kicker">今日推荐</div>
     <div class="intro-title">今天吃什么</div>
     <p class="intro-subtitle">摇一摇，告诉你附近最该去的那家店</p>
-    <div class="shake-zone" id="shakeZone"><span>🍽️</span></div>
-    <button class="shake-btn" id="shakeBtn">开始推荐</button>
+    <div class="shake-zone" id="shakeZone">
+      <div class="shake-ring"></div><div class="shake-ring"></div><div class="shake-ring"></div>
+      <div class="shake-circle" id="shakeIcon">🍽️</div>
+    </div>
+    <div class="shake-label">摇一摇 / 点此</div>
+    <button class="shake-btn" id="shakeBtn">开始抽签</button>
   </div>
-  <div class="intro-note">高德地图 POI 实时数据</div>
+  <div class="intro-note">数据来源 · 高德地图 POI 实时数据</div>
 </div>
 
-<!-- ====== MAIN ====== -->
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">正在搜索周边餐厅...</div>
+</div>
+
+<!-- MAIN PAGE -->
 <div id="mainPage">
+  <!-- Search Bar -->
   <div class="search-wrap">
-    <input type="text" id="placeInput" placeholder="输入地名...">
-    <button onclick="searchPlace()">搜索</button>
+    <input type="text" id="placeInput" placeholder="输入地名，如：南宁朝阳广场、北京三里屯..." value="南宁">
+    <button id="searchBtn" onclick="searchPlace()">搜索</button>
   </div>
+
+  <!-- Header -->
   <header class="header">
-    <div class="header-top"><div class="header-meta">Food Decision</div><div class="header-date" id="headerDate"></div></div>
+    <div class="header-top">
+      <div class="header-meta">Food Decision</div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
     <hr class="header-rule">
-    <h1 class="header-title">今日吃什么</h1>
-    <p class="header-subtitle" id="pageSubtitle">正在定位…</p>
+    <h1 class="header-title" id="pageTitle">今日吃什么</h1>
+    <p class="header-subtitle" id="pageSubtitle">附近餐厅推荐 · 步行15分钟内</p>
   </header>
-  <div class="feature-banner">
-    <img class="feature-photo" id="featurePhoto" src="" alt="" onerror="this.style.opacity='0.3';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22120%22%3E%3Crect fill=%22%23EDE8DF%22 width=%22600%22 height=%22120%22/%3E%3Ctext x=%22300%22 y=%2270%22 text-anchor=%22middle%22 font-size=%2240%22%3E🍽️%3C/text%3E%3C/svg%3E';">
+
+  <!-- Feature Banner -->
+  <div class="feature-banner" id="featureBanner">
+    <img class="feature-photo" id="featurePhoto" src="" alt="" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22140%22%3E%3Crect fill=%22%23EDE8DF%22 width=%22600%22 height=%22140%22/%3E%3C/svg%3E'">
     <div class="feature-overlay"></div>
-    <div class="feature-caption"><div class="feature-caption-label">推荐</div><div class="feature-caption-title" id="featureTitle">加载中…</div></div>
+    <div class="feature-caption">
+      <div class="feature-caption-label">今日推荐</div>
+      <div class="feature-caption-title" id="featureTitle">加载中…</div>
+    </div>
+    <div class="feature-illust" id="featureIllust">🍜</div>
   </div>
-  <div class="notify-strip"><div class="notify-dot"></div><div class="notify-text">附近 <strong id="notifyCount">0家</strong> 餐厅等你来选</div></div>
-  <div class="hot-bar-wrap"><div class="hot-bar-label">热度分布</div><div class="hot-bar"><div class="hot-bar-fill" id="hotBar" style="width:0%"></div></div></div>
-  <div class="map-wrap" id="mapWrap"><div id="map"></div><svg id="rings-overlay"></svg>
+
+  <!-- Notify Strip -->
+  <div class="notify-strip" id="notifyStrip">
+    <div class="notify-dot"></div>
+    <div class="notify-text">附近 <strong id="notifyCount">0家</strong> 餐厅等你来选 · 高德实时数据</div>
+    <div class="notify-arrow">→</div>
+  </div>
+
+  <!-- Hot Bar -->
+  <div class="hot-bar-wrap">
+    <div class="hot-bar-label">热度分布 · Walking Distance</div>
+    <div class="hot-bar"><div class="hot-bar-fill" id="hotBar" style="width:0%"></div></div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap" id="mapWrap">
+    <div id="map"></div>
+    <svg id="rings-overlay"></svg>
     <div class="map-legend">
-      <div class="legend-item"><div class="legend-ring" style="background:var(--ember)"></div>5分钟</div>
-      <div class="legend-item"><div class="legend-ring" style="background:var(--sage)"></div>10分钟</div>
-      <div class="legend-item"><div class="legend-ring" style="background:var(--muted)"></div>15分钟</div>
+      <div class="legend-item"><div class="legend-ring" style="background:var(--ember)"></div>步行 5 分钟内</div>
+      <div class="legend-item"><div class="legend-ring" style="background:var(--sage)"></div>步行 10 分钟内</div>
+      <div class="legend-item"><div class="legend-ring" style="background:var(--muted)"></div>步行 15 分钟内</div>
     </div>
   </div>
-  <div class="section-header"><div class="section-title">餐厅推荐</div><div class="section-count" id="listCount">0家</div><div class="section-rule"></div></div>
-  <div class="restaurant-list" id="restaurantList"></div>
-  <footer class="footer">别想了，吃这个。<br>高德地图 POI 实时数据</footer>
-</div>
 
-<!-- ====== DETAIL CARD ====== -->
-<div id="detailOverlay" onclick="closeCard()">
-  <div class="detail-card" id="detailCard" onclick="event.stopPropagation()">
+  <!-- Restaurant List -->
+  <div class="section-header">
+    <div class="section-title">餐厅推荐</div>
+    <div class="section-count" id="listCount">0家餐厅</div>
+    <div class="section-rule"></div>
+  </div>
+  <div class="restaurant-list" id="restaurantList"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-text">别想了，吃这个。</div>
+    <div class="footer-slogan">数据来源 · 高德地图 POI 实时数据</div>
+  </footer>
+
+  <!-- Detail Card -->
+  <div class="detail-card" id="detailCard">
     <div class="swipe-hint"><div class="swipe-hint-line"></div></div>
     <div class="card-photo-header">
-      <img class="card-bg-photo" id="cardPhoto" src="" alt="">
+      <img class="card-bg-photo" id="cardPhoto" src="" alt="" referrerpolicy="no-referrer" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22600%22 height=%22200%22%3E%3Crect fill=%22%23EDE8DF%22 width=%22600%22 height=%22200%22/%3E%3Ctext x=%22300%22 y=%22110%22 text-anchor=%22middle%22 font-family=%22serif%22 font-size=%2248%22 fill=%22%23C45C3A%22%3E🍽️%3C/text%3E%3C/svg%3E';this.style.opacity='0.5';">
       <div class="card-illust-layer"></div>
+      <div class="card-rank-badge" id="cardBadge">1</div>
       <div class="card-close" onclick="closeCard()">✕</div>
     </div>
     <div class="card-content">
-      <div class="card-title" id="cardTitle"></div>
+      <div class="card-rank-num" id="cardRank">01</div>
+      <div class="card-title" id="cardTitle">餐厅名称</div>
       <div class="card-meta" id="cardMeta"></div>
-      <div class="card-platforms"><span class="card-platform-badge gaode">高德地图</span></div>
-      <div class="card-quote"><p id="cardQuote"></p><div class="card-quote-source" id="cardQuoteSource"></div></div>
+      <div class="card-platforms" id="cardPlatforms"></div>
+      <hr class="card-rule">
+      <div class="card-quote">
+        <span class="card-quote-mark">"</span>
+        <p id="cardQuote">推荐语</p>
+        <div class="card-quote-source" id="cardQuoteSource">— 高德地图</div>
+      </div>
+      <div class="card-reasons-label">推荐理由</div>
       <div class="card-reasons" id="cardReasons"></div>
       <div class="card-stats">
-        <div class="card-stat"><span class="card-stat-num" id="statRating">—</span><span class="card-stat-label">评分</span></div>
-        <div class="card-stat"><span class="card-stat-num" id="statCost">—</span><span class="card-stat-label">人均</span></div>
-        <div class="card-stat"><span class="card-stat-num" id="statWalk">—</span><span class="card-stat-label">步行</span></div>
+        <div class="card-stat">
+          <span class="card-stat-num" id="statRating">—</span>
+          <span class="card-stat-label">高德评分</span>
+        </div>
+        <div class="card-stat">
+          <span class="card-stat-num" id="statCost">—</span>
+          <span class="card-stat-label">人均消费</span>
+        </div>
+        <div class="card-stat">
+          <span class="card-stat-num" id="statWalk">—</span>
+          <span class="card-stat-label">步行时间</span>
+        </div>
       </div>
       <div class="card-cta">
-        <button class="card-btn secondary" onclick="closeCard()">再看看</button>
+        <button class="card-btn secondary" onclick="closeCard()">← 再看看</button>
         <button class="card-btn primary" onclick="navigateTo()">🧭 导航去吃</button>
       </div>
     </div>
@@ -204,301 +372,377 @@ body { font-family:-apple-system,'Noto Serif SC',sans-serif; background:var(--pa
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// 配置：在此填入你的高德 API Key
-// 免费申请 → https://console.amap.com/dev/key/app
-// ═══════════════════════════════════════════
+// ==================== 配置：替换为你的高德 API Key ====================
 const AMAP_KEY = '21a7c7fc12da2fda5ba4513a66cf3f03';
+// ====================================================================
 
-// ═══════════════════════════════════════════
-// 全局状态
-// ═══════════════════════════════════════════
-let restaurants = [], map = null;
-let userLoc = { lng: 108.367, lat: 22.817, _radius: 1000 };
-const FOOD_EMOJI = {
-  '川菜':'🌶️','火锅':'🍲','烧烤':'🍢','粤菜':'🥘','西餐':'🥩','快餐':'🍔',
-  '咖啡':'☕','甜品':'🍰','日韩料理':'🍣','东南亚菜':'🍜','中餐厅':'🥢',
-  '冷饮店':'🧋','韩国料理':'🍙','面食':'🍝','卤味':'🍢','火锅店':'🍲',
-  '湘菜':'🌶️','江浙菜':'🥟','自助餐':'🍽️','清真':'🥙','小吃':'🥟'
-};
+// ====== STATE ======
+let restaurants = [];
+let map = null;
+let userLoc = { lng: 108.367, lat: 22.817 }; // 默认：南宁
+let shakeCount = 0;
 
-// ═══════════════════════════════════════════
-// 初始化
-// ═══════════════════════════════════════════
-(function() {
-  var d = new Date();
-  document.getElementById('headerDate').textContent =
-    d.toLocaleDateString('zh-CN', { month:'short', day:'numeric', weekday:'short' });
+// Food emojis per cuisine
+const FOOD_EMOJI = { '川菜':'🌶️','火锅':'🍲','烧烤':'🍢','粤菜':'🥘','湘菜':'🌶️','江浙菜':'🥟','西餐':'🥩','快餐':'🍔','咖啡':'☕','甜品':'🍰','日韩料理':'🍣','东南亚菜':'🍜','自助餐':'🍽️','清真':'🥙','中餐厅':'🥢','冷饮店':'🧋','糕饼店':'🥐','快餐厅':'🍟','韩国料理':'🍙','泰国':'🍜','越南':'🍜','外国餐厅':'🍽️','餐饮相关':'🍴' };
 
-  // GPS 定位
-  if (navigator.geolocation) {
-    document.getElementById('pageSubtitle').textContent = '正在获取你的位置…';
-    navigator.geolocation.getCurrentPosition(function(pos) {
-      userLoc = { lng: pos.coords.longitude, lat: pos.coords.latitude, _radius: 1000 };
-      document.getElementById('placeInput').value = '当前位置';
-      document.getElementById('pageSubtitle').textContent = '基于你的位置 · 步行15分钟内';
-      loadRestaurants(userLoc.lng, userLoc.lat, 1000);
-    }, function() {
-      // GPS 失败 → 默认南宁
-      document.getElementById('pageSubtitle').textContent = '南宁 · 步行15分钟内（未获取定位）';
-      document.getElementById('placeInput').value = '南宁';
-      loadRestaurants(108.367, 22.817, 1000);
-    }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
-  } else {
-    document.getElementById('pageSubtitle').textContent = '南宁 · 步行15分钟内';
-    document.getElementById('placeInput').value = '南宁';
-    loadRestaurants(108.367, 22.817, 1000);
-  }
-})();
+// ====== INTRO ======
+window.addEventListener('load',()=>{setTimeout(()=>{document.getElementById('intro').classList.add('ready')},200);});
+function doShake(){if(shakeCount>0)return;shakeCount++;triggerResult();}
+document.getElementById('shakeZone').addEventListener('click',doShake);
+document.getElementById('shakeBtn').addEventListener('click',doShake);
+let lastX=0,lastY=0,lastZ=0,lastTime=0;
+window.addEventListener('devicemotion',(e)=>{const acc=e.accelerationIncludingGravity;if(!acc||acc.x===null)return;const now=Date.now();if(now-lastTime<100)return;const dt=now-lastTime;const speed=(Math.abs(acc.x-lastX)+Math.abs(acc.y-lastY)+Math.abs(acc.z-lastZ))/dt*10000;if(speed>800){lastTime=now;doShake();}lastX=acc.x;lastY=acc.y;lastZ=acc.z;lastTime=now;});
 
-// ═══════════════════════════════════════════
-// 事件
-// ═══════════════════════════════════════════
-document.getElementById('shakeZone').onclick = trigger;
-document.getElementById('shakeBtn').onclick = trigger;
-document.getElementById('placeInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') searchPlace();
-});
+// ====== DATE ======
+(function(){const d=new Date();document.getElementById('headerDate').textContent=d.toLocaleDateString('zh-CN',{month:'short',day:'numeric',weekday:'short'});})();
 
-function trigger() {
-  document.getElementById('intro').classList.add('gone');
-  document.getElementById('mainPage').classList.add('visible');
-  if (!map) initMap();
-  if (restaurants.length === 0) loadRestaurants(userLoc.lng, userLoc.lat, userLoc._radius || 1000);
+// ====== AMAP API (直接调用，无服务端) ======
+async function amapGeocode(place) {
+  const url = 'https://restapi.amap.com/v5/place/text?keywords='+encodeURIComponent(place)+'&types=190000&offset=1&key='+AMAP_KEY;
+  const res = await fetch(url);
+  const data = await res.json();
+  const pois = data.pois;
+  if (!pois || pois.length === 0) return null;
+  const [lng, lat] = pois[0].location.split(',').map(Number);
+  return { lng, lat, name: pois[0].name };
 }
 
-// ═══════════════════════════════════════════
-// API 调用（直连高德，无需服务器）
-// ═══════════════════════════════════════════
-async function fetchNearby(lng, lat, radius) {
-  var url = 'https://restapi.amap.com/v5/place/around?location=' + lng + ',' + lat
-    + '&types=050000&radius=' + radius
-    + '&offset=25&sortrule=distance'
-    + '&show_fields=children,business,navi,photos&key=' + AMAP_KEY;
-  var res = await fetch(url);
-  var raw = await res.json();
-  return (raw.pois || []).map(function(poi) {
-    var b = poi.business || {};
-    var dist = Number(poi.distance || 9999);
-    var wm = Math.max(1, Math.round(dist / 80));
-    var tagsRaw = [b.tag, b.rectag, b.keytag].filter(Boolean)
-      .flatMap(function(s) { return String(s).split(/[,;，；\s]+/); }).filter(Boolean);
-    var tags = tagsRaw.filter(function(t, i) { return tagsRaw.indexOf(t) === i; });
-    var tp = (poi.type || '').split(';');
-    var cuisine = tp[2] || tp[1] || '中餐';
-    var rating = b.rating ? Number(b.rating) : 3.5;
-    var cost = b.cost ? Number(b.cost) : 0;
-    var rs = (rating / 5) * 35;
-    var ds = Math.max(0, (1 - dist / 1500)) * 35;
-    var ts = Math.min(tags.length / 10, 1) * 15;
-    var ps = ((poi.photos || []).length > 0 ? 15 : 5);
-    var hs = Math.round(Math.min(rs + ds + ts + ps, 100));
+async function amapSearchNearby(lng, lat, radius) {
+  var r = Math.min(5000, Math.max(200, radius || 1000));
+  const url = 'https://restapi.amap.com/v5/place/around?location='+lng+','+lat+'&types=050000&radius='+r+'&offset=25&sortrule=distance&show_fields=children,business,navi,photos&key='+AMAP_KEY;
+  const res = await fetch(url);
+  return await res.json();
+}
+
+function processRestaurants(raw, lng, lat) {
+  const pois = (raw.pois || []);
+  const list = pois.slice(0, 25).map(function(poi, i) {
+    const b = poi.business || {};
+    const locStr = poi.location || '0,0';
+    const [plng, plat] = locStr.split(',').map(Number);
+    const dist = Number(poi.distance || 9999);
+    const walkingMin = Math.max(1, Math.round(dist / 80));
+    const tagsRaw = [b.tag, b.rectag, b.keytag].filter(Boolean).flatMap(function(s) { return String(s).split(/[,;，；\s]+/); }).filter(Boolean);
+    const tags = Array.from(new Set(tagsRaw));
+    const typeParts = (poi.type || '').split(';');
+    const cuisine = typeParts[2] || typeParts[1] || '中餐';
+    const rating = b.rating ? Number(b.rating) : 3.5;
+    const costPerPerson = b.cost ? Number(b.cost) : 0;
+    const ratingScore = (rating / 5) * 35;
+    const distScore = Math.max(0, (1 - dist / 1500)) * 35;
+    const tagScore = Math.min(tags.length / 10, 1) * 15;
+    const photoScore = ((poi.photos || []).length > 0 ? 15 : 5);
+    const hotnessScore = Math.round(Math.min(ratingScore + distScore + tagScore + photoScore, 100));
     return {
-      name: poi.name, cuisine: cuisine, rating: rating, costPerPerson: cost,
-      walkingMin: wm, distance: dist + 'm', address: poi.address || '',
-      businessArea: b.business_area || '', tags: tags.slice(0, 8),
+      id: poi.id,
+      rank: i + 1,
+      name: poi.name,
+      cuisine: cuisine,
+      rating: rating,
+      costPerPerson: costPerPerson,
+      walkingMin: walkingMin,
+      distance: dist + 'm',
+      address: poi.address || '',
+      businessArea: b.business_area || '',
+      tags: tags.slice(0, 8),
       photoUrl: ((poi.photos || [])[0] || {}).url || '',
-      hotnessScore: hs,
+      hotnessScore: hotnessScore,
       quote: tags.length > 0 ? '"' + tags[0] + '，值得一试"' : '"附近好评度最高的餐厅之一"',
-      lng: Number(poi.location.split(',')[0]), lat: Number(poi.location.split(',')[1])
+      lng: plng,
+      lat: plat,
     };
-  }).sort(function(a, b) { return b.hotnessScore - a.hotnessScore; });
+  });
+  list.sort(function(a, b) { return b.hotnessScore - a.hotnessScore; });
+  list.forEach(function(r, i) { r.rank = i + 1; });
+  return list;
 }
 
+// ====== API CALLS ======
 async function searchPlace() {
-  var place = document.getElementById('placeInput').value.trim();
+  const place = document.getElementById('placeInput').value.trim();
   if (!place) return;
-  var url = 'https://restapi.amap.com/v5/place/text?keywords=' + encodeURIComponent(place)
-    + '&types=190000&offset=1&key=' + AMAP_KEY;
-  var res = await fetch(url);
-  var data = await res.json();
-  if (!data.pois || data.pois.length === 0) { alert('找不到"' + place + '"'); return; }
-  var p = data.pois[0];
-  var loc = p.location.split(',').map(Number);
-  userLoc = { lng: loc[0], lat: loc[1], _radius: 1000 };
-  document.getElementById('pageSubtitle').textContent = place + ' · 步行15分钟内';
-  loadRestaurants(loc[0], loc[1], 1000);
+  if (AMAP_KEY === 'YOUR_AMAP_KEY_HERE') { alert('请先在代码中设置你的高德 API Key\n文件顶部: const AMAP_KEY = ...'); return; }
+  showLoading('正在定位...');
+  try {
+    const loc = await amapGeocode(place);
+    if (!loc) { alert('未找到"'+place+'"'); hideLoading(); return; }
+    userLoc = { lng: loc.lng, lat: loc.lat, _radius: 1000 };
+    document.getElementById('pageSubtitle').textContent = place + ' · 步行15分钟内';
+    await loadRestaurants(userLoc.lng, userLoc.lat, 1000);
+  } catch(e) { alert('定位失败: '+e.message); hideLoading(); }
 }
 
-async function loadRestaurants(lng, lat, radius) {
-  restaurants = await fetchNearby(lng, lat, radius);
-  updateUI(lng, lat);
+function zoomToRadius(zoom) {
+  return Math.round(25000 / Math.pow(2, zoom - 8));
 }
 
-// ═══════════════════════════════════════════
-// UI 更新
-// ═══════════════════════════════════════════
+async function loadRestaurants(lng, lat, radius, quiet) {
+  if (!quiet) showLoading('正在搜索周边餐厅...');
+  try {
+    const raw = await amapSearchNearby(lng, lat, radius);
+    if (raw.status === '0' && raw.info !== 'OK') {
+      alert('API 错误: ' + (raw.info || '未知'));
+      if (!quiet) hideLoading();
+      return;
+    }
+    restaurants = processRestaurants(raw, lng, lat);
+    updateUI(lng, lat);
+    if (!quiet) hideLoading();
+  } catch(e) { alert('搜索失败: '+e.message); if(!quiet) hideLoading(); }
+}
+
 function updateUI(lng, lat) {
-  document.getElementById('notifyCount').textContent = restaurants.length + '家';
-  document.getElementById('listCount').textContent = restaurants.length + '家';
-  var maxScore = restaurants.length > 0 ? restaurants[0].hotnessScore : 80;
-  setTimeout(function() { document.getElementById('hotBar').style.width = maxScore + '%'; }, 300);
+  document.getElementById('notifyCount').textContent = restaurants.length+'家';
+  document.getElementById('listCount').textContent = restaurants.length+'家餐厅';
+
+  const maxScore = restaurants.length > 0 ? restaurants[0].hotnessScore : 80;
+  setTimeout(function(){document.getElementById('hotBar').style.width=(maxScore/100*100)+'%'},400);
+
   if (restaurants.length > 0) {
-    var t = restaurants[0];
-    document.getElementById('featurePhoto').src = t.photoUrl || '';
-    document.getElementById('featureTitle').textContent = t.name + ' · ' + t.hotnessScore + '分';
+    const top = restaurants[0];
+    document.getElementById('featurePhoto').src = top.photoUrl || '';
+    document.getElementById('featureTitle').textContent = top.name + ' · ' + top.hotnessScore.toFixed(0) + '分';
+    document.getElementById('featureIllust').textContent = FOOD_EMOJI[top.cuisine] || '🍜';
   }
-  if (map && lng && lat) map.setView([lat, lng], map.getZoom());
-  else if (!map) initMap();
+
+  if (map && lng && lat) {
+    map.setView([lat, lng], map.getZoom(), { animate: true });
+  } else if (!map) {
+    initMap();
+  }
   renderList();
-  if (map) setTimeout(function() { clearPins(); placePins(); drawRings(); }, 300);
+  if (map) { clearPins(); placePins(); drawRings(); }
 }
 
+let markers = [];
+
+function clearPins() {
+  markers.forEach(function(m) { map.removeLayer(m); });
+  markers = [];
+}
+
+// ====== RENDER LIST ======
 function renderList() {
-  var list = document.getElementById('restaurantList');
+  const list = document.getElementById('restaurantList');
   list.innerHTML = '';
-  restaurants.forEach(function(r, i) {
-    var tags = r.tags.slice(0, 3).map(esc).map(function(t) {
-      return '<span class="item-tag">' + t + '</span>';
-    }).join('');
-    var photo = r.photoUrl
-      ? '<img class="item-photo" src="' + r.photoUrl + '" loading="lazy" onerror="this.parentElement.style.display=\'none\'">'
+  restaurants.forEach(function(r,i) {
+    const isTop = i < 3;
+    const item = document.createElement('div');
+    item.className = 'restaurant-item'+(isTop?' top-three':'');
+    item.onclick = function(){openCard(i);};
+    const tags = r.tags.slice(0,3).map(function(t){return '<span class="item-tag">'+esc(t)+'</span>';}).join('');
+    const photoHtml = r.photoUrl
+      ? '<img class="item-photo" src="'+r.photoUrl+'" alt="" loading="lazy" onerror="this.parentElement.style.display=\'none\'">'
       : '';
-    var item = document.createElement('div');
-    item.className = 'restaurant-item' + (i < 3 ? ' top-three' : '');
-    item.onclick = (function(idx) { return function() { openCard(idx); }; })(i);
     item.innerHTML =
-      '<div class="rank-num">' + String(i + 1).padStart(2, '0') + '</div>' +
-      '<div class="item-photo-wrap">' + photo + '<div class="rank-badge">' + (i + 1) + '</div></div>' +
-      '<div class="item-content">' +
-        '<div class="item-header-row"><div class="item-name">' + esc(r.name) + '</div>' +
-        '<div class="item-score-badge">' + r.hotnessScore + '</div></div>' +
-        '<div class="item-tags"><span class="item-tag">' + esc(r.cuisine) + '</span>' +
-        '<span class="item-tag">🚶 ' + r.walkingMin + '分钟</span>' + tags + '</div>' +
-        '<div class="item-meta">' + esc(r.address.substring(0, 18)) + '…</div>' +
+      '<div class="rank-num">'+String(i+1).padStart(2,'0')+'</div>'+
+      '<div class="item-photo-wrap">'+photoHtml+'<div class="rank-badge">'+(i+1)+'</div></div>'+
+      '<div class="item-content">'+
+        '<div class="item-header-row"><div class="item-name">'+esc(r.name)+'</div><div class="item-score-badge">'+r.hotnessScore.toFixed(0)+'</div></div>'+
+        '<div class="item-tags"><span class="item-tag">'+esc(r.cuisine)+'</span><span class="item-tag">🚶 '+r.walkingMin+'分钟</span>'+tags+'</div>'+
+        '<div class="item-meta"><span>'+esc(r.address.substring(0,20))+'…</span></div>'+
       '</div>';
     list.appendChild(item);
   });
 }
 
-// ═══════════════════════════════════════════
-// 地图
-// ═══════════════════════════════════════════
+// ====== MAP ======
 function initMap() {
-  if (map) { map.remove(); map = null; }
-  map = L.map('map', {
-    center: [userLoc.lat, userLoc.lng], zoom: 16,
-    zoomControl: true, attributionControl: false,
-    dragging: true, scrollWheelZoom: true
-  });
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-  var icon = L.divIcon({
-    html: '<div style="width:12px;height:12px;background:#2A2318;border-radius:50%;border:2px solid #F7F3EC;box-shadow:0 0 0 3px rgba(247,243,236,0.4)"></div>',
-    className: '', iconSize: [12, 12], iconAnchor: [6, 6]
-  });
-  L.marker([userLoc.lat, userLoc.lng], { icon: icon }).addTo(map);
-  drawRings(); placePins();
+  if (map) { map.remove(); map=null; }
+  map = L.map('map',{center:[userLoc.lat,userLoc.lng],zoom:16,zoomControl:true,attributionControl:false,dragging:true,scrollWheelZoom:true});
+  L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:['1','2','3','4'],maxZoom:18}).addTo(map);
 
-  var moveTimer = null;
+  const userIcon = L.divIcon({html:'<div style="width:14px;height:14px;background:#2A2318;border-radius:50%;border:2.5px solid #F7F3EC;box-shadow:0 0 0 4px rgba(247,243,236,0.4)"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]});
+  L.marker([userLoc.lat,userLoc.lng],{icon:userIcon}).addTo(map);
+
+  drawRings();
+  placePins();
+
+  let moveTimer = null;
   map.on('zoomend moveend', function() {
-    drawRings(); clearPins(); placePins();
+    drawRings();
+    clearPins();
+    placePins();
     clearTimeout(moveTimer);
     moveTimer = setTimeout(function() {
-      var c = map.getCenter();
-      var radius = zoomToRadius(map.getZoom());
-      var dist = userLoc.lat ? haversine(userLoc.lat, userLoc.lng, c.lat, c.lng) : 9999;
-      if (dist > 200 || Math.abs(radius - (userLoc._radius || 0)) > 300) {
-        userLoc = { lng: c.lng, lat: c.lat, _radius: radius };
-        loadRestaurants(c.lng, c.lat, radius);
+      const center = map.getCenter();
+      const radius = zoomToRadius(map.getZoom());
+      const dist = userLoc.lat && userLoc.lng
+        ? haversine(userLoc.lat, userLoc.lng, center.lat, center.lng)
+        : 9999;
+      const currentRadius = userLoc._radius || 0;
+      if (dist > 200 || Math.abs(radius - currentRadius) > 300) {
+        userLoc = { lng: center.lng, lat: center.lat, _radius: radius };
+        loadRestaurants(center.lng, center.lat, radius);
       }
     }, 600);
   });
 }
 
-function zoomToRadius(z) { return Math.round(25000 / Math.pow(2, z - 8)); }
-
 function drawRings() {
-  var svg = document.getElementById('rings-overlay');
-  var me = document.getElementById('map');
-  var w = me.offsetWidth, h = me.offsetHeight;
-  svg.setAttribute('width', w); svg.setAttribute('height', h);
-  var cp = map.latLngToContainerPoint(map.getCenter());
-  var rings = [
-    { m: 400, c: '#C45C3A', l: '5' },
-    { m: 800, c: '#7A8B6E', l: '10' },
-    { m: 1200, c: '#9C9183', l: '15' }
+  const svg = document.getElementById('rings-overlay');
+  const mapEl = document.getElementById('map');
+  const w=mapEl.offsetWidth, h=mapEl.offsetHeight;
+  svg.setAttribute('width',w); svg.setAttribute('height',h);
+
+  const centerPoint = map.latLngToContainerPoint(map.getCenter());
+  const ringsMeters = [
+    { meters: 400, color: '#C45C3A', label: '5' },
+    { meters: 800, color: '#7A8B6E', label: '10' },
+    { meters: 1200, color: '#9C9183', label: '15' },
   ];
-  svg.innerHTML = rings.map(function(ring, i) {
-    var ep = map.latLngToContainerPoint([
+
+  svg.innerHTML = ringsMeters.map(function(ring, i) {
+    const edgePoint = map.latLngToContainerPoint([
       map.getCenter().lat,
-      map.getCenter().lng + ring.m / (111320 * Math.cos(map.getCenter().lat * Math.PI / 180))
+      map.getCenter().lng + ring.meters / (111320 * Math.cos(map.getCenter().lat * Math.PI / 180))
     ]);
-    var r = Math.abs(ep.x - cp.x);
-    var dash = i === 0 ? 'none' : (Math.round(r * 0.03) + ',' + Math.round(r * 0.04));
-    return '<circle cx="' + cp.x + '" cy="' + cp.y + '" r="' + r + '" fill="none" stroke="' + ring.c + '" stroke-width="1.5" stroke-dasharray="' + dash + '" opacity="0.5"/>' +
-      '<text x="' + (cp.x + r + 4) + '" y="' + (cp.y + 3) + '" fill="' + ring.c + '" font-size="8" font-weight="700" opacity="0.6">' + ring.l + '分</text>';
+    const r = Math.abs(edgePoint.x - centerPoint.x);
+    const dash = i === 0 ? 'none' : (Math.round(r * 0.03) + ',' + Math.round(r * 0.04));
+    return '<circle cx="'+centerPoint.x+'" cy="'+centerPoint.y+'" r="'+r+'" fill="none" stroke="'+ring.color+'" stroke-width="1.5" stroke-dasharray="'+dash+'" opacity="0.5"/>'
+      + '<text x="'+(centerPoint.x + r + 5)+'" y="'+(centerPoint.y + 4)+'" fill="'+ring.color+'" font-size="9" font-weight="700" opacity="0.6">'+ring.label+'分</text>';
   }).join('');
 }
 
-function clearPins() {
-  var me = document.getElementById('map');
-  if (me) me.querySelectorAll('.custom-pin').forEach(function(el) { el.remove(); });
-}
-
 function placePins() {
-  var positions = [{ x: 72, y: 38 }, { x: 52, y: 58 }, { x: 26, y: 28 }, { x: 82, y: 68 }, { x: 18, y: 78 }];
-  var me = document.getElementById('map');
-  restaurants.slice(0, 5).forEach(function(r, i) {
-    var pos = positions[i] || { x: 50 + Math.random() * 30, y: 30 + Math.random() * 40 };
+  restaurants.slice(0, 8).forEach(function(r, i) {
     var bg = r.hotnessScore >= 80 ? '#C45C3A' : r.hotnessScore >= 70 ? '#7A8B6E' : '#9C9183';
     var fg = r.hotnessScore >= 75 ? '#FDFAF5' : '#2A2318';
     var emoji = FOOD_EMOJI[r.cuisine] || '🍴';
-    var pin = document.createElement('div');
-    pin.className = 'custom-pin';
-    pin.style.cssText = 'position:absolute;left:' + pos.x + '%;top:' + pos.y + '%;transform:translate(-50%,-50%);z-index:500;cursor:pointer';
-    pin.innerHTML =
-      '<div style="width:34px;height:34px;background:' + bg + ';border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(42,35,24,0.2);border:2px solid #F7F3EC">' +
-        '<span style="position:absolute;top:-4px;right:-4px;background:#2A2318;color:#F7F3EC;font-size:8px;font-weight:800;padding:1px 3px;border-radius:6px">' + r.hotnessScore + '</span>' +
-        '<span style="color:' + fg + '">' + emoji + '</span>' +
-      '</div>' +
-      '<div style="text-align:center;font-size:8px;font-weight:700;color:#5C5044;margin-top:2px;background:rgba(247,243,236,0.88);padding:1px 4px;border-radius:6px">🚶 ' + r.walkingMin + '分</div>';
-    pin.onclick = (function(idx) { return function() { openCard(idx); }; })(i);
-    me.appendChild(pin);
+    var html =
+      '<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;transform:translate(-50%,-100%)">' +
+        '<div style="width:38px;height:38px;background:' + bg + ';border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 3px 12px rgba(42,35,24,0.2);border:2.5px solid #F7F3EC;position:relative">' +
+          '<span style="position:absolute;top:-5px;right:-5px;background:#2A2318;color:#F7F3EC;font-size:9px;font-weight:800;padding:1px 4px;border-radius:8px;border:1.5px solid #F7F3EC">' + r.hotnessScore.toFixed(0) + '</span>' +
+          '<span style="color:' + fg + '">' + emoji + '</span>' +
+        '</div>' +
+        '<div style="text-align:center;font-size:9px;font-weight:700;color:#5C5044;margin-top:2px;background:rgba(247,243,236,0.88);padding:2px 5px;border-radius:8px;white-space:nowrap">🚶 ' + r.walkingMin + '分</div>' +
+      '</div>';
+    var icon = L.divIcon({ html: html, className: '', iconSize: [60, 60], iconAnchor: [30, 60] });
+    var marker = L.marker([r.lat, r.lng], { icon: icon }).addTo(map);
+    marker.on('click', (function(idx) { return function() { openCard(idx); }; })(i));
+    markers.push(marker);
   });
 }
 
-// ═══════════════════════════════════════════
-// 详情卡
-// ═══════════════════════════════════════════
+// ====== DETAIL CARD ======
 function openCard(idx) {
-  var r = restaurants[idx]; if (!r) return;
-  document.getElementById('detailOverlay').classList.add('open');
-  document.getElementById('detailCard').classList.add('open');
+  const r = restaurants[idx];
+  if (!r) return;
   document.getElementById('cardPhoto').src = r.photoUrl || '';
+  document.getElementById('cardBadge').textContent = idx+1;
+  document.getElementById('cardRank').textContent = String(idx+1).padStart(2,'0');
   document.getElementById('cardTitle').textContent = r.name;
   document.getElementById('cardQuote').textContent = r.quote;
   document.getElementById('cardQuoteSource').textContent = '— 高德地图用户评价';
   document.getElementById('statRating').textContent = r.rating;
-  document.getElementById('statCost').textContent = '¥' + r.costPerPerson;
-  document.getElementById('statWalk').textContent = r.walkingMin + '分钟';
-  document.getElementById('cardMeta').innerHTML =
-    '<span>🍽️ ' + esc(r.cuisine) + '</span><span>⭐ ' + r.rating + '</span><span>🚶 ' + r.walkingMin + '分钟</span>';
-  document.getElementById('cardReasons').innerHTML = r.tags.slice(0, 4).map(function(t) {
-    return '<span class="card-reason-chip">' + esc(t) + '</span>';
-  }).join('');
+  document.getElementById('statCost').textContent = '¥'+r.costPerPerson;
+  document.getElementById('statWalk').textContent = r.walkingMin+'分钟';
+  document.getElementById('cardMeta').innerHTML = [
+    '<span class="card-meta-item">🍽️ '+esc(r.cuisine)+'</span>',
+    '<span class="card-meta-item">⭐ '+r.rating+'</span>',
+    '<span class="card-meta-item">🚶 '+r.walkingMin+'分钟</span>'
+  ].join('');
+  document.getElementById('cardPlatforms').innerHTML = '<span class="card-platform-badge gaode">高德地图</span>';
+  document.getElementById('cardReasons').innerHTML = r.tags.slice(0,4).map(function(t){return '<span class="card-reason-chip">'+esc(t)+'</span>';}).join('');
+  document.getElementById('detailCard').classList.add('open');
+  document.getElementById('mapWrap').classList.add('card-open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeCard() {
-  document.getElementById('detailOverlay').classList.remove('open');
   document.getElementById('detailCard').classList.remove('open');
+  document.getElementById('mapWrap').classList.remove('card-open');
   document.body.style.overflow = '';
 }
 
 function navigateTo() {
-  var r = restaurants[0]; if (!r) return;
-  window.open('https://uri.amap.com/navigation?to=' + r.lng + ',' + r.lat + ',餐厅&mode=walk&callnative=1', '_blank');
+  const r = restaurants[parseInt(document.getElementById('cardBadge').textContent)-1];
+  if (r) window.open('https://uri.amap.com/navigation?to='+r.lng+','+r.lat+',餐厅&mode=walk&callnative=1','_blank');
 }
 
-// ═══════════════════════════════════════════
-// 工具
-// ═══════════════════════════════════════════
-function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-function haversine(lat1, lng1, lat2, lng2) {
-  var R = 6371000, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
-  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+// ====== TRIGGER ======
+async function triggerResult() {
+  const zone = document.getElementById('shakeZone');
+  zone.classList.add('spinning');
+  zone.querySelector('.shake-circle').textContent = '…';
+
+  if (restaurants.length === 0) {
+    if (AMAP_KEY === 'YOUR_AMAP_KEY_HERE') { alert('请先在代码顶部设置高德 API Key'); zone.classList.remove('spinning'); zone.querySelector('.shake-circle').textContent = '🍽️'; return; }
+    document.getElementById('loadingText').textContent = '正在搜索附近餐厅...';
+    document.getElementById('loadingOverlay').classList.add('active');
+    await loadRestaurants(userLoc.lng, userLoc.lat, userLoc._radius || 1000, true);
+    document.getElementById('loadingOverlay').classList.remove('active');
+  }
+
+  setTimeout(function(){
+    document.getElementById('intro').classList.add('gone');
+    document.getElementById('mainPage').classList.add('visible');
+    if (restaurants.length === 0) { alert('附近暂无数据，请搜索其他地点'); }
+    updateUI(userLoc.lng, userLoc.lat);
+    zone.classList.remove('spinning');
+    zone.querySelector('.shake-circle').textContent = '🍽️';
+  }, 450);
 }
+
+// ====== UTILS ======
+function showLoading(msg) { document.getElementById('loadingText').textContent=msg; document.getElementById('loadingOverlay').classList.add('active'); }
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('active'); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function haversine(lat1, lng1, lat2, lng2) {
+  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// Swipe close
+(function(){
+  const card = document.getElementById('detailCard'); let startY=0;
+  card.addEventListener('touchstart',function(e){startY=e.touches[0].clientY},{passive:true});
+  card.addEventListener('touchend',function(e){if(e.changedTouches[0].clientY-startY>80)closeCard();},{passive:true});
+})();
+
+document.getElementById('notifyStrip').onclick = function(){ document.querySelector('.map-wrap').scrollIntoView({behavior:'smooth',block:'start'}); };
+window.addEventListener('resize',function(){if(map){map.invalidateSize();setTimeout(drawRings,100);}});
+document.getElementById('placeInput').addEventListener('keydown',function(e){if(e.key==='Enter')searchPlace();});
+
+// ====== INIT: 先加载默认数据，GPS 后台更新 ======
+(function init(){
+  if (AMAP_KEY === 'YOUR_AMAP_KEY_HERE') {
+    document.getElementById('placeInput').value = '南宁';
+    return;
+  }
+
+  // 1. 立即创建地图（瓦片加载和 API 调用并行）
+  document.getElementById('placeInput').value = '南宁';
+  document.getElementById('pageSubtitle').textContent = '南宁 · 正在获取你的位置…';
+  userLoc._radius = 1000;
+  initMap();  // ← 瓦片后台异步加载，不阻塞
+  loadRestaurants(108.367, 22.817, 1000, true);
+
+  // 2. 后台尝试 GPS，成功则更新为真实位置
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        // 距南宁超过 500m 才算有效切换
+        var dist = haversine(22.817, 108.367, lat, lng);
+        if (dist > 500) {
+          userLoc = { lng: lng, lat: lat, _radius: 1000 };
+          document.getElementById('placeInput').value = '📍 当前位置';
+          document.getElementById('pageSubtitle').textContent = '基于你的位置 · 步行15分钟内';
+          loadRestaurants(lng, lat, 1000, true);
+        } else {
+          document.getElementById('pageSubtitle').textContent = '基于你的位置 · 步行15分钟内';
+        }
+      },
+      function(err) {
+        document.getElementById('pageSubtitle').textContent = '南宁 · 点击搜索框输入你的城市（' + (err && err.message ? err.message : '未授权定位') + '）';
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+    );
+  }
+})();
 </script>
 </body>
 </html>
