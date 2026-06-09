@@ -494,7 +494,47 @@ function processRestaurants(raw, lng, lat) {
   });
   list.sort(function(a, b) { return b.hotnessScore - a.hotnessScore; });
   list.forEach(function(r, i) { r.rank = i + 1; });
+
+  // 今日精选：Top 5 中按分数加权随机抽一家
+  var topN = Math.min(5, list.length);
+  if (topN > 1) {
+    var weights = list.slice(0, topN).map(function(r) { return r.hotnessScore; });
+    var totalW = weights.reduce(function(a, b) { return a + b; }, 0);
+    var dart = Math.random() * totalW;
+    var cum = 0, pickIdx = 0;
+    for (var j = 0; j < topN; j++) { cum += weights[j]; if (dart <= cum) { pickIdx = j; break; } }
+    // 标记精选
+    list.forEach(function(r) { r.featured = false; });
+    list[pickIdx].featured = true;
+    list[pickIdx].featuredRank = list[pickIdx].rank;
+    // 推到列表第一位，其余保持原序
+    if (pickIdx > 0) {
+      var pick = list.splice(pickIdx, 1)[0];
+      list.unshift(pick);
+      list.forEach(function(r, i) { r.rank = i + 1; });
+    }
+  }
+
   return list;
+}
+
+// 重新洗牌：按原始热度分重排 Top 5 加权随机
+function reshufflePick() {
+  if (restaurants.length <= 1) return;
+  restaurants.sort(function(a, b) { return b.hotnessScore - a.hotnessScore; });
+  var topN = Math.min(5, restaurants.length);
+  var weights = restaurants.slice(0, topN).map(function(r) { return r.hotnessScore; });
+  var totalW = weights.reduce(function(a, b) { return a + b; }, 0);
+  var dart = Math.random() * totalW;
+  var cum = 0, pickIdx = 0;
+  for (var j = 0; j < topN; j++) { cum += weights[j]; if (dart <= cum) { pickIdx = j; break; } }
+  restaurants.forEach(function(r) { r.featured = false; });
+  restaurants[pickIdx].featured = true;
+  if (pickIdx > 0) {
+    var pick = restaurants.splice(pickIdx, 1)[0];
+    restaurants.unshift(pick);
+  }
+  restaurants.forEach(function(r, i) { r.rank = i + 1; });
 }
 
 // ====== API CALLS ======
@@ -540,6 +580,7 @@ function updateUI(lng, lat) {
     document.getElementById('featureTitle').textContent = top.name + ' · ' + top.hotnessScore.toFixed(0) + '分';
     document.getElementById('featureIllust').textContent = FOOD_EMOJI[top.cuisine] || '🍜';
     document.getElementById('featureDishes').textContent = top.signature || '';
+    document.querySelector('.feature-caption-label').textContent = top.featured ? '今日精选' : '今日推荐';
   }
 
   if (map && lng && lat) {
@@ -748,6 +789,9 @@ async function triggerResult() {
     document.getElementById('loadingOverlay').classList.add('active');
     await loadRestaurants(userLoc.lng, userLoc.lat, userLoc._radius || 1000, true);
     document.getElementById('loadingOverlay').classList.remove('active');
+  } else {
+    // 已有数据：重新洗牌精选
+    reshufflePick();
   }
 
   setTimeout(function(){
