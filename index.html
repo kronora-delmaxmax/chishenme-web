@@ -863,6 +863,7 @@ document.getElementById('placeInput').addEventListener('keydown',function(e){if(
       function(pos) {
         var lat = pos.coords.latitude;
         var lng = pos.coords.longitude;
+        var acc = pos.coords.accuracy;
         // 距南宁超过 500m 才算有效切换
         var dist = haversine(22.817, 108.367, lat, lng);
         if (dist > 500) {
